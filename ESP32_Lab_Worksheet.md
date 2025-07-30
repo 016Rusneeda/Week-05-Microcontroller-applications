@@ -227,10 +227,13 @@ mkdir -p main
 #include <string.h>
 #include <esp_system.h>
 #include <esp_heap_caps.h>
+#include <esp_attr.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 // Global variables in different memory sections
-static char sram_buffer[1024] __attribute__((section(".dram")));
-static const char flash_string[] __attribute__((section(".rodata"))) = "Hello from Flash Memory!";
+DRAM_ATTR static char sram_buffer[1024];  // Explicitly place in DRAM using ESP32 attribute
+static const char flash_string[] = "Hello from Flash Memory!";  // This will be in .rodata (Flash) automatically
 static char *heap_ptr;
 
 // Function to display memory information
@@ -267,17 +270,27 @@ void print_memory_info() {
 }
 
 void app_main() {
+    // เพิ่ม delay เล็กน้อยเพื่อให้ serial port พร้อม
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    
+    printf("=== ESP32 STARTING UP ===\n");
     printf("ESP32 Memory Architecture Analysis\n");
     printf("==================================\n");
+    
+    // Flush output buffer
+    fflush(stdout);
     
     // Test memory operations
     strcpy(sram_buffer, "SRAM Test Data");
     printf("Flash string: %s\n", flash_string);
     printf("SRAM buffer: %s\n", sram_buffer);
     
+    fflush(stdout);
+    
     print_memory_info();
     
     printf("\nMemory analysis complete!\n");
+    fflush(stdout);
 }
 ```
 
@@ -332,8 +345,18 @@ idf.py qemu monitor
 # ดูผลลัพธ์ที่แสดง memory addresses
 ```
 
+หมายเหตุ ในกรณีอยู่นอก docker (ยังไม่ได้ exec เข้าไปใน docker) สามารถใช้คำสั่งนี้บน cmd terminal
 
+```bash 
+# build
+  docker exec -it esp32-lab5 bash -c "source /opt/esp/idf/export.sh && cd memory-test && idf.py build"
 
+# จำลองการทำงานด้วย
+   docker exec -it esp32-lab5 bash -c "source /opt/esp/idf/export.sh && cd memory-test && idf.py qemu"
+
+# ออกจากจำลองการทำงานด้วย
+   Ctrl+z
+```
 
 **🖥️ ผลลัพธ์ที่ควรเห็นใน QEMU:**
 ```
